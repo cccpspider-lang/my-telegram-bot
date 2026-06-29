@@ -101,13 +101,13 @@ def init_db() -> None:
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks (user_id)"
         )
+        _migrate_tasks_table(conn)
         conn.execute(
             """
             CREATE INDEX IF NOT EXISTS idx_tasks_due
             ON tasks (remind_at)
             """
         )
-        _migrate_tasks_table(conn)
         conn.commit()
 
 
