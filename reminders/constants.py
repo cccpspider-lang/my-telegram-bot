@@ -2,10 +2,30 @@ REPEAT_ONCE = "once"
 REPEAT_DAILY = "daily"
 REPEAT_WEEKLY = "weekly"
 REPEAT_MONTHLY = "monthly"
+REPEAT_NONE = "none"
 
-REPEAT_LABELS = {
-    REPEAT_ONCE: "1️⃣ Одноразово",
-    REPEAT_DAILY: "🔁 Ежедневно",
-    REPEAT_WEEKLY: "📆 Еженедельно",
-    REPEAT_MONTHLY: "🗓 Ежемесячно",
+REPEAT_DISPLAY = {
+    REPEAT_ONCE: "Однократно",
+    REPEAT_DAILY: "Ежедневно",
+    REPEAT_WEEKLY: "Еженедельно",
+    REPEAT_MONTHLY: "Ежемесячно",
+    REPEAT_NONE: "Без повторения",
 }
+
+REPEAT_BTN_ONCE = "Один раз"
+REPEAT_BTN_DAILY = "Каждый день"
+REPEAT_BTN_WEEKLY = "Каждую неделю"
+REPEAT_BTN_MONTHLY = "Каждый месяц"
+REPEAT_BTN_NONE = "Без повторения"
+
+REPEAT_BUTTON_TO_TYPE = {
+    REPEAT_BTN_ONCE: REPEAT_ONCE,
+    REPEAT_BTN_DAILY: REPEAT_DAILY,
+    REPEAT_BTN_WEEKLY: REPEAT_WEEKLY,
+    REPEAT_BTN_MONTHLY: REPEAT_MONTHLY,
+    REPEAT_BTN_NONE: REPEAT_NONE,
+}
+
+REPEAT_BUTTONS = set(REPEAT_BUTTON_TO_TYPE.keys())
+
+ONE_TIME_REPEAT_TYPES = {REPEAT_ONCE, REPEAT_NONE}
