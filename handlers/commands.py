@@ -14,11 +14,11 @@ from keyboards import (
     get_main_menu,
 )
 from keyboards.reminder import (
-    REMINDER_BUTTONS,
     REMINDER_DATETIME_BTN,
     REMINDER_SKIP_BTN,
     REMINDER_TIME_BTN,
-    get_reminder_choice_keyboard,
+    TASK_REMINDER_BUTTONS,
+    get_task_reminder_choice_keyboard,
 )
 from services.context import get_reminder_service
 from utils.datetime_parser import parse_date_time, parse_time_only
@@ -95,7 +95,7 @@ async def start_reminder_setup(
     )
     await message.answer(
         format_reminder_choice(task_number, task_text),
-        reply_markup=get_reminder_choice_keyboard(),
+        reply_markup=get_task_reminder_choice_keyboard(),
         **HTML,
     )
 
@@ -206,13 +206,13 @@ async def process_reminder_choice(message: Message, state: FSMContext) -> None:
 
     await message.answer(
         "Выберите вариант из меню или отправьте /start для отмены.",
-        reply_markup=get_reminder_choice_keyboard(),
+        reply_markup=get_task_reminder_choice_keyboard(),
     )
 
 
 @router.message(TaskStates.waiting_for_time, F.text)
 async def process_reminder_time(message: Message, state: FSMContext) -> None:
-    if message.text in REMINDER_BUTTONS | MENU_BUTTONS:
+    if message.text in TASK_REMINDER_BUTTONS | MENU_BUTTONS:
         await message.answer(
             "🕐 Введите время в формате <code>14:30</code> или /start для отмены.",
             **HTML,
@@ -229,7 +229,7 @@ async def process_reminder_time(message: Message, state: FSMContext) -> None:
 
 @router.message(TaskStates.waiting_for_datetime, F.text)
 async def process_reminder_datetime(message: Message, state: FSMContext) -> None:
-    if message.text in REMINDER_BUTTONS | MENU_BUTTONS:
+    if message.text in TASK_REMINDER_BUTTONS | MENU_BUTTONS:
         await message.answer(
             "📅 Введите дату и время или /start для отмены.",
             **HTML,

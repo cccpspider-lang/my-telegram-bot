@@ -3,6 +3,7 @@ from datetime import datetime
 
 from aiogram.types import Message
 
+from reminders.constants import REPEAT_LABELS
 from utils.datetime_parser import format_remind_at
 
 
@@ -20,8 +21,8 @@ def format_welcome(name: str) -> str:
         "Я твой помощник по задачам 📌\n\n"
         "Что умею:\n"
         "• 📝 добавлять задачи\n"
-        "• ⏰ напоминать в нужное время\n"
-        "• 📋 показывать список\n"
+        "• 🔔 создавать напоминания\n"
+        "• 📋 показывать списки\n"
         "• ❌ удалять по номеру\n"
         "• 🗑 очищать всё командой /clear\n\n"
         "Выбери действие в меню ниже 👇"
@@ -31,21 +32,20 @@ def format_welcome(name: str) -> str:
 def format_help() -> str:
     return (
         "ℹ️ <b>Справка</b>\n\n"
-        "<b>Команды:</b>\n"
+        "<b>Задачи:</b>\n"
         "/start — главное меню\n"
         "/add &lt;текст&gt; — добавить задачу\n"
         "/tasks — список задач\n"
-        "/clear — удалить все задачи\n"
-        "/help — эта справка\n\n"
-        "<b>Кнопки меню:</b>\n"
-        "📝 Добавить задачу — ввод новой задачи\n"
-        "📋 Мои задачи — ваш личный список\n"
-        "❌ Удалить задачу — удаление по номеру\n"
-        "ℹ️ Помощь — показать справку\n\n"
+        "/clear — удалить все задачи\n\n"
         "<b>Напоминания:</b>\n"
-        "После добавления задачи можно указать время или дату.\n"
-        "Форматы: <code>14:30</code> или <code>25.06.2026 14:30</code>\n\n"
-        "🔒 Задачи хранятся отдельно для каждого пользователя."
+        "/reminders — мои напоминания\n"
+        "🔔 Напоминания — создать новое\n"
+        "📋 Мои напоминания — список\n"
+        "🗑 Удалить напоминание — удалить по номеру\n\n"
+        "Формат даты: <code>25.06.2026 14:30</code>\n"
+        "Периодичность: одноразово, ежедневно, еженедельно, ежемесячно\n\n"
+        "/help — эта справка\n\n"
+        "🔒 Данные каждого пользователя хранятся отдельно."
     )
 
 
@@ -60,12 +60,32 @@ def format_tasks_list(tasks: list) -> str:
     return "\n".join(lines)
 
 
+def format_reminders_list(reminders: list) -> str:
+    lines = ["📋 <b>Мои напоминания</b>\n"]
+    for reminder in reminders:
+        repeat_label = REPEAT_LABELS.get(reminder["repeat_type"], reminder["repeat_type"])
+        lines.append(
+            f"<b>{reminder['reminder_number']}.</b> {html.escape(reminder['message'])}\n"
+            f"   ⏰ {_format_remind_at(reminder['remind_at'])}\n"
+            f"   🔁 {repeat_label}"
+        )
+    lines.append(f"\n📊 Всего: <b>{len(reminders)}</b>")
+    return "\n".join(lines)
+
+
 def format_empty_tasks() -> str:
     return (
         "📭 <b>Список пуст</b>\n\n"
         "У вас пока нет задач.\n"
         "Нажмите «📝 Добавить задачу» или отправьте:\n"
         "<code>/add Купить молоко</code>"
+    )
+
+
+def format_empty_reminders() -> str:
+    return (
+        "📭 <b>Напоминаний нет</b>\n\n"
+        "Создайте первое через кнопку «🔔 Напоминания»."
     )
 
 
@@ -82,10 +102,33 @@ def format_task_added(task_number: int, text: str, remind_at: datetime | None = 
     return message
 
 
+def format_reminder_created(
+    reminder_number: int,
+    text: str,
+    remind_at: datetime,
+    repeat_type: str,
+) -> str:
+    repeat_label = REPEAT_LABELS.get(repeat_type, repeat_type)
+    return (
+        "✅ <b>Напоминание создано</b>\n\n"
+        f"🔢 Номер: <b>#{reminder_number}</b>\n"
+        f"📝 Текст: {html.escape(text)}\n"
+        f"⏰ Когда: <b>{format_remind_at(remind_at)}</b>\n"
+        f"🔁 Период: {repeat_label}"
+    )
+
+
 def format_task_deleted(task_number: int) -> str:
     return (
         "🗑 <b>Задача удалена</b>\n\n"
         f"Задача <b>#{task_number}</b> больше не в списке."
+    )
+
+
+def format_reminder_deleted(reminder_number: int) -> str:
+    return (
+        "🗑 <b>Напоминание удалено</b>\n\n"
+        f"Напоминание <b>#{reminder_number}</b> больше не активно."
     )
 
 
@@ -97,11 +140,43 @@ def format_task_not_found(task_number: int) -> str:
     )
 
 
+def format_reminder_not_found(reminder_number: int) -> str:
+    return (
+        "⚠️ <b>Напоминание не найдено</b>\n\n"
+        f"Напоминания с номером <b>#{reminder_number}</b> нет.\n"
+        "Проверьте список: /reminders"
+    )
+
+
 def format_prompt_add_task() -> str:
     return (
         "📝 <b>Новая задача</b>\n\n"
         "Напишите текст задачи одним сообщением.\n"
         "Отмена: /start"
+    )
+
+
+def format_prompt_add_reminder() -> str:
+    return (
+        "🔔 <b>Новое напоминание</b>\n\n"
+        "Напишите текст напоминания одним сообщением.\n"
+        "Отмена: /start"
+    )
+
+
+def format_prompt_reminder_datetime() -> str:
+    return (
+        "📅 <b>Дата и время</b>\n\n"
+        "Формат: <code>ДД.ММ.ГГГГ ЧЧ:ММ</code>\n"
+        "Пример: <code>25.06.2026 14:30</code>\n\n"
+        "Отмена: /start"
+    )
+
+
+def format_prompt_reminder_repeat() -> str:
+    return (
+        "🔁 <b>Периодичность</b>\n\n"
+        "Выберите, как часто повторять напоминание."
     )
 
 
@@ -149,6 +224,14 @@ def format_invalid_datetime() -> str:
     )
 
 
+def format_invalid_strict_datetime() -> str:
+    return (
+        "⚠️ Неверный формат.\n\n"
+        "Используйте: <code>ДД.ММ.ГГГГ ЧЧ:ММ</code>\n"
+        "Пример: <code>25.06.2026 14:30</code>"
+    )
+
+
 def format_prompt_delete_task(tasks: list) -> str:
     return (
         f"{format_tasks_list(tasks)}\n\n"
@@ -158,8 +241,21 @@ def format_prompt_delete_task(tasks: list) -> str:
     )
 
 
+def format_prompt_delete_reminder(reminders: list) -> str:
+    return (
+        f"{format_reminders_list(reminders)}\n\n"
+        "🗑 <b>Удаление напоминания</b>\n"
+        "Отправьте номер напоминания из списка.\n"
+        "Отмена: /start"
+    )
+
+
 def format_no_tasks_to_delete() -> str:
     return "📭 <b>Нечего удалять</b>\n\nСписок задач пуст."
+
+
+def format_no_reminders_to_delete() -> str:
+    return "📭 <b>Нечего удалять</b>\n\nСписок напоминаний пуст."
 
 
 def format_clear_confirm(count: int) -> str:
@@ -184,13 +280,6 @@ def format_clear_cancelled() -> str:
 
 def format_clear_empty() -> str:
     return "📭 <b>Список уже пуст</b>\n\nУдалять нечего."
-
-
-def format_reminder_notification(task_text: str) -> str:
-    return (
-        "⏰ <b>Пора выполнить задачу!</b>\n\n"
-        f"📝 {html.escape(task_text)}"
-    )
 
 
 def _format_remind_at(value: str) -> str:

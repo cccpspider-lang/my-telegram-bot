@@ -102,7 +102,7 @@ def get_tasks(user_id: int) -> list[sqlite3.Row]:
                 r.remind_at
             FROM tasks t
             LEFT JOIN reminders r
-                ON r.task_id = t.id AND r.is_sent = 0
+                ON r.task_id = t.id AND r.repeat_type = 'once'
             WHERE t.user_id = ?
             ORDER BY t.task_number ASC
             """,
@@ -156,7 +156,10 @@ def delete_task(user_id: int, task_number: int) -> bool:
 
 def clear_all_tasks(user_id: int) -> int:
     with get_connection() as conn:
-        conn.execute("DELETE FROM reminders WHERE user_id = ?", (user_id,))
+        conn.execute(
+            "DELETE FROM reminders WHERE user_id = ? AND task_id IS NOT NULL",
+            (user_id,),
+        )
         cursor = conn.execute(
             "DELETE FROM tasks WHERE user_id = ?",
             (user_id,),
