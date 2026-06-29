@@ -8,6 +8,7 @@ from aiogram.types import Message
 
 import database as db
 from config import SUPPORT_USERNAME
+from handlers.fsm_helpers import get_state_data, require_keys
 from handlers.states import TaskStates
 from keyboards import (
     ADD_TASK_BTN,
@@ -209,6 +210,7 @@ async def process_date_choice(message: Message, state: FSMContext) -> None:
 @router.message(TaskStates.waiting_for_time, F.text)
 async def process_time(message: Message, state: FSMContext) -> None:
     await log_fsm(message, state, "process_time")
+    data = await get_state_data(state)
 
     if message.text == BACK_BTN:
         await go_main_menu(message, state)
@@ -230,7 +232,14 @@ async def process_time(message: Message, state: FSMContext) -> None:
         )
         return
 
-    data = await state.get_data()
+    if not require_keys(data, "target_date"):
+        await message.answer(
+            "⚠️ Сессия сброшена. Начните добавление задачи заново.",
+            reply_markup=get_main_menu(),
+        )
+        await state.clear()
+        return
+
     target_date = date.fromisoformat(data["target_date"])
     remind_at = parse_moscow_time(message.text, target_date)
     if remind_at is None:
@@ -273,6 +282,8 @@ async def process_manual_datetime(message: Message, state: FSMContext) -> None:
 
 @router.message(TaskStates.waiting_for_repeat_type, F.text)
 async def process_repeat_type(message: Message, state: FSMContext) -> None:
+    await log_fsm(message, state, "process_repeat_type")
+
     if message.text == BACK_BTN:
         await go_main_menu(message, state)
         return
@@ -285,7 +296,15 @@ async def process_repeat_type(message: Message, state: FSMContext) -> None:
         )
         return
 
-    data = await state.get_data()
+    data = await get_state_data(state)
+    if not require_keys(data, "remind_at", "task_text"):
+        await message.answer(
+            "⚠️ Сессия сброшена. Начните добавление задачи заново.",
+            reply_markup=get_main_menu(),
+        )
+        await state.clear()
+        return
+
     remind_at = datetime.fromisoformat(data["remind_at"])
     task_text = data["task_text"]
     task_number = db.add_task(
