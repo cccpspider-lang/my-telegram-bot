@@ -1,4 +1,5 @@
 from datetime import date, datetime
+import logging
 
 from aiogram import F, Router
 from aiogram.filters import Command
@@ -29,7 +30,7 @@ from keyboards.task import (
     get_repeat_keyboard,
 )
 from reminders.constants import REPEAT_BUTTON_TO_TYPE
-from utils.datetime_parser import parse_moscow_time, parse_strict_date_time
+from utils.datetime_parser import is_valid_time_format, parse_moscow_time, parse_strict_date_time
 from utils.formatters import (
     format_back_to_menu,
     format_empty_tasks,
@@ -45,6 +46,7 @@ from utils.formatters import (
     format_support,
     format_task_saved,
     format_tasks_list,
+    format_time_in_past,
     format_welcome,
     get_user_name,
 )
@@ -52,6 +54,18 @@ from utils.timezone import today_moscow, tomorrow_moscow
 
 router = Router()
 HTML = {"parse_mode": "HTML"}
+logger = logging.getLogger(__name__)
+
+
+async def log_fsm(message: Message, state: FSMContext, step: str) -> None:
+    current_state = await state.get_state()
+    logger.info(
+        "[%s] FSM state: %s | user_id: %s | message: %r",
+        step,
+        current_state,
+        message.from_user.id if message.from_user else None,
+        message.text,
+    )
 
 
 def get_user_id(message: Message) -> int:
@@ -158,12 +172,22 @@ async def process_date_choice(message: Message, state: FSMContext) -> None:
     if message.text == DATE_TODAY_BTN:
         await state.update_data(target_date=today_moscow().isoformat())
         await state.set_state(TaskStates.waiting_for_time)
+        logger.info(
+            "Set FSM state to waiting_for_time for user %s, target_date=%s",
+            message.from_user.id,
+            today_moscow().isoformat(),
+        )
         await message.answer(format_prompt_time_msk(), reply_markup=get_back_keyboard(), **HTML)
         return
 
     if message.text == DATE_TOMORROW_BTN:
         await state.update_data(target_date=tomorrow_moscow().isoformat())
         await state.set_state(TaskStates.waiting_for_time)
+        logger.info(
+            "Set FSM state to waiting_for_time for user %s, target_date=%s",
+            message.from_user.id,
+            tomorrow_moscow().isoformat(),
+        )
         await message.answer(format_prompt_time_msk(), reply_markup=get_back_keyboard(), **HTML)
         return
 
@@ -184,6 +208,8 @@ async def process_date_choice(message: Message, state: FSMContext) -> None:
 
 @router.message(TaskStates.waiting_for_time, F.text)
 async def process_time(message: Message, state: FSMContext) -> None:
+    await log_fsm(message, state, "process_time")
+
     if message.text == BACK_BTN:
         await go_main_menu(message, state)
         return
@@ -195,9 +221,8 @@ async def process_time(message: Message, state: FSMContext) -> None:
         )
         return
 
-    target_date = date.fromisoformat(data["target_date"])
-    remind_at = parse_moscow_time(message.text, target_date)
-    if remind_at is None:
+    if not is_valid_time_format(message.text):
+        logger.warning("Invalid time format from user %s: %r", message.from_user.id, message.text)
         await message.answer(
             format_invalid_time(),
             reply_markup=get_back_keyboard(),
@@ -205,6 +230,19 @@ async def process_time(message: Message, state: FSMContext) -> None:
         )
         return
 
+    data = await state.get_data()
+    target_date = date.fromisoformat(data["target_date"])
+    remind_at = parse_moscow_time(message.text, target_date)
+    if remind_at is None:
+        logger.warning("Time in past from user %s: %r", message.from_user.id, message.text)
+        await message.answer(
+            format_time_in_past(),
+            reply_markup=get_back_keyboard(),
+            **HTML,
+        )
+        return
+
+    logger.info("Time accepted for user %s: %s", message.from_user.id, remind_at)
     await proceed_to_repeat_step(message, state, remind_at)
 
 
