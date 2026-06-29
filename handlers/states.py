@@ -9,3 +9,9 @@ class TaskStates(StatesGroup):
     waiting_for_task_id = State()
     waiting_for_clear_confirm = State()
 
+
+class ReminderStates(StatesGroup):
+    waiting_for_text = State()
+    waiting_for_datetime = State()
+    waiting_for_repeat_type = State()
+    waiting_for_delete_id = State()

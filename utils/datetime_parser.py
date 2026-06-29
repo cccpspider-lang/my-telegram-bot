@@ -1,3 +1,4 @@
+import calendar
 import re
 from datetime import datetime, timedelta
 
@@ -59,5 +60,51 @@ def parse_date_time(value: str, now: datetime | None = None) -> datetime | None:
     return None
 
 
+def parse_strict_date_time(value: str, now: datetime | None = None) -> datetime | None:
+    """Строгий формат: DD.MM.YYYY HH:MM."""
+    now = now or datetime.now()
+    value = value.strip()
+
+    match = re.fullmatch(
+        r"(\d{1,2})\.(\d{1,2})\.(\d{4})\s+(\d{1,2})[:.](\d{2})",
+        value,
+    )
+    if not match:
+        return None
+
+    day, month, year, hour, minute = map(int, match.groups())
+    if not (1 <= day <= 31 and 1 <= month <= 12 and 0 <= hour <= 23 and 0 <= minute <= 59):
+        return None
+
+    try:
+        remind_at = datetime(year, month, day, hour, minute)
+    except ValueError:
+        return None
+
+    if remind_at <= now:
+        return None
+
+    return remind_at
+
+
 def format_remind_at(dt: datetime) -> str:
     return dt.strftime("%d.%m.%Y %H:%M")
+
+
+def next_occurrence(current: datetime, repeat_type: str) -> datetime:
+    if repeat_type == "daily":
+        return current + timedelta(days=1)
+
+    if repeat_type == "weekly":
+        return current + timedelta(weeks=1)
+
+    if repeat_type == "monthly":
+        month = current.month + 1
+        year = current.year
+        if month > 12:
+            month = 1
+            year += 1
+        day = min(current.day, calendar.monthrange(year, month)[1])
+        return current.replace(year=year, month=month, day=day)
+
+    return current
