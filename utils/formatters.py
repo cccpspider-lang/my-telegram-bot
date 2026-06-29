@@ -6,6 +6,8 @@ from aiogram.types import Message
 from reminders.constants import REPEAT_DISPLAY
 from utils.datetime_parser import format_remind_at
 
+MSK_WARNING = "⚠️ Внимание: указывайте время по Москве (МСК)."
+
 
 def get_user_name(message: Message) -> str:
     user = message.from_user
@@ -18,6 +20,7 @@ def format_welcome(name: str) -> str:
     return (
         f"👋 Привет, <b>{html.escape(name)}</b>!\n\n"
         "Простой бот для задач с напоминаниями 📌\n"
+        "🕒 Все напоминания по московскому времени (МСК).\n\n"
         "Выберите действие в меню 👇"
     )
 
@@ -28,10 +31,12 @@ def format_help() -> str:
         "<b>📋 Мои задачи</b> — список ваших задач\n\n"
         "<b>➕ Добавить задачу</b>\n"
         "1. Введите текст\n"
-        "2. Укажите дату и время: <code>ДД.ММ.ГГГГ ЧЧ:ММ</code>\n"
-        "3. Выберите периодичность\n\n"
+        "2. Выберите дату: сегодня, завтра или вручную\n"
+        "3. Укажите время по Москве (МСК)\n"
+        "4. Выберите периодичность\n\n"
         "<b>🗑 Удалить задачу</b> — выберите номер задачи\n\n"
         "<b>❤️ Поддержка</b> — связаться с автором\n\n"
+        "🕒 Все напоминания работают по московскому времени (МСК).\n\n"
         "Кнопка «⬅️ Назад» возвращает в главное меню."
     )
 
@@ -59,12 +64,30 @@ def format_prompt_add_task() -> str:
     return "➕ <b>Шаг 1 из 3</b>\n\nВведите текст задачи."
 
 
-def format_prompt_datetime() -> str:
+def format_prompt_date_choice() -> str:
     return (
         "📅 <b>Шаг 2 из 3</b>\n\n"
-        "Когда напомнить?\n"
+        "Когда напомнить?\n\n"
+        f"{MSK_WARNING}"
+    )
+
+
+def format_prompt_time_msk() -> str:
+    return (
+        "🕐 <b>Время напоминания</b>\n\n"
+        "Введите время по московскому времени (МСК).\n"
+        "Пример:\n"
+        "<code>19:30</code>\n\n"
+        f"{MSK_WARNING}"
+    )
+
+
+def format_prompt_manual_datetime() -> str:
+    return (
+        "✍️ <b>Дата и время</b>\n\n"
         "Формат: <code>ДД.ММ.ГГГГ ЧЧ:ММ</code>\n"
-        "Пример: <code>30.06.2026 18:30</code>"
+        "Пример: <code>30.06.2026 18:30</code>\n\n"
+        f"{MSK_WARNING}"
     )
 
 
@@ -72,12 +95,20 @@ def format_prompt_repeat() -> str:
     return "🔁 <b>Шаг 3 из 3</b>\n\nВыберите периодичность:"
 
 
+def format_invalid_time() -> str:
+    return (
+        "⚠️ Неверное время.\n\n"
+        "Пример: <code>19:30</code>\n"
+        "Время должно быть в будущем по Москве (МСК)."
+    )
+
+
 def format_invalid_datetime() -> str:
     return (
         "⚠️ Неверный формат.\n\n"
         "Используйте: <code>ДД.ММ.ГГГГ ЧЧ:ММ</code>\n"
         "Пример: <code>30.06.2026 18:30</code>\n"
-        "Дата должна быть в будущем."
+        "Дата должна быть в будущем по Москве (МСК)."
     )
 
 

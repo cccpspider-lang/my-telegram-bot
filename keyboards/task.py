@@ -10,7 +10,33 @@ from reminders.constants import (
     REPEAT_BUTTONS,
 )
 
-__all__ = ["REPEAT_BUTTONS", "get_delete_tasks_keyboard", "get_repeat_keyboard"]
+DATE_TODAY_BTN = "📅 Сегодня"
+DATE_TOMORROW_BTN = "🌅 Завтра"
+DATE_MANUAL_BTN = "✍️ Ввести вручную"
+
+DATE_BUTTONS = {DATE_TODAY_BTN, DATE_TOMORROW_BTN, DATE_MANUAL_BTN, BACK_BTN}
+
+__all__ = [
+    "DATE_BUTTONS",
+    "DATE_MANUAL_BTN",
+    "DATE_TODAY_BTN",
+    "DATE_TOMORROW_BTN",
+    "REPEAT_BUTTONS",
+    "get_date_choice_keyboard",
+    "get_delete_tasks_keyboard",
+    "get_repeat_keyboard",
+]
+
+
+def get_date_choice_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=DATE_TODAY_BTN), KeyboardButton(text=DATE_TOMORROW_BTN)],
+            [KeyboardButton(text=DATE_MANUAL_BTN)],
+            [KeyboardButton(text=BACK_BTN)],
+        ],
+        resize_keyboard=True,
+    )
 
 
 def get_repeat_keyboard() -> ReplyKeyboardMarkup:

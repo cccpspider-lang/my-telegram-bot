@@ -1,9 +1,9 @@
+from datetime import date, datetime
+
 from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
-
-from datetime import datetime
 
 import database as db
 from config import SUPPORT_USERNAME
@@ -19,24 +19,36 @@ from keyboards import (
     get_back_keyboard,
     get_main_menu,
 )
-from keyboards.task import REPEAT_BUTTONS, get_repeat_keyboard
+from keyboards.task import (
+    DATE_BUTTONS,
+    DATE_MANUAL_BTN,
+    DATE_TODAY_BTN,
+    DATE_TOMORROW_BTN,
+    REPEAT_BUTTONS,
+    get_date_choice_keyboard,
+    get_repeat_keyboard,
+)
 from reminders.constants import REPEAT_BUTTON_TO_TYPE
-from utils.datetime_parser import parse_strict_date_time
+from utils.datetime_parser import parse_moscow_time, parse_strict_date_time
 from utils.formatters import (
     format_back_to_menu,
     format_empty_tasks,
     format_help,
     format_invalid_datetime,
+    format_invalid_time,
     format_no_tasks_to_delete,
     format_prompt_add_task,
-    format_prompt_datetime,
+    format_prompt_date_choice,
+    format_prompt_manual_datetime,
     format_prompt_repeat,
+    format_prompt_time_msk,
     format_support,
     format_task_saved,
     format_tasks_list,
     format_welcome,
     get_user_name,
 )
+from utils.timezone import today_moscow, tomorrow_moscow
 
 router = Router()
 HTML = {"parse_mode": "HTML"}
@@ -49,6 +61,16 @@ def get_user_id(message: Message) -> int:
 async def go_main_menu(message: Message, state: FSMContext) -> None:
     await state.clear()
     await message.answer(format_back_to_menu(), reply_markup=get_main_menu())
+
+
+async def proceed_to_repeat_step(message: Message, state: FSMContext, remind_at: datetime) -> None:
+    await state.update_data(remind_at=remind_at.isoformat())
+    await state.set_state(TaskStates.waiting_for_repeat_type)
+    await message.answer(
+        format_prompt_repeat(),
+        reply_markup=get_repeat_keyboard(),
+        **HTML,
+    )
 
 
 @router.message(Command("start"))
@@ -119,22 +141,81 @@ async def process_task_text(message: Message, state: FSMContext) -> None:
         return
 
     await state.update_data(task_text=text)
-    await state.set_state(TaskStates.waiting_for_datetime)
+    await state.set_state(TaskStates.waiting_for_date_choice)
     await message.answer(
-        format_prompt_datetime(),
-        reply_markup=get_back_keyboard(),
+        format_prompt_date_choice(),
+        reply_markup=get_date_choice_keyboard(),
         **HTML,
     )
 
 
-@router.message(TaskStates.waiting_for_datetime, F.text)
-async def process_datetime(message: Message, state: FSMContext) -> None:
+@router.message(TaskStates.waiting_for_date_choice, F.text)
+async def process_date_choice(message: Message, state: FSMContext) -> None:
     if message.text == BACK_BTN:
         await go_main_menu(message, state)
         return
-    if message.text in MENU_BUTTONS | REPEAT_BUTTONS:
+
+    if message.text == DATE_TODAY_BTN:
+        await state.update_data(target_date=today_moscow().isoformat())
+        await state.set_state(TaskStates.waiting_for_time)
+        await message.answer(format_prompt_time_msk(), reply_markup=get_back_keyboard(), **HTML)
+        return
+
+    if message.text == DATE_TOMORROW_BTN:
+        await state.update_data(target_date=tomorrow_moscow().isoformat())
+        await state.set_state(TaskStates.waiting_for_time)
+        await message.answer(format_prompt_time_msk(), reply_markup=get_back_keyboard(), **HTML)
+        return
+
+    if message.text == DATE_MANUAL_BTN:
+        await state.set_state(TaskStates.waiting_for_manual_datetime)
         await message.answer(
-            "📅 Введите дату и время.",
+            format_prompt_manual_datetime(),
+            reply_markup=get_back_keyboard(),
+            **HTML,
+        )
+        return
+
+    await message.answer(
+        "Выберите дату из меню.",
+        reply_markup=get_date_choice_keyboard(),
+    )
+
+
+@router.message(TaskStates.waiting_for_time, F.text)
+async def process_time(message: Message, state: FSMContext) -> None:
+    if message.text == BACK_BTN:
+        await go_main_menu(message, state)
+        return
+    if message.text in MENU_BUTTONS | DATE_BUTTONS | REPEAT_BUTTONS:
+        await message.answer(
+            "🕐 Введите время по Москве (МСК).",
+            reply_markup=get_back_keyboard(),
+            **HTML,
+        )
+        return
+
+    target_date = date.fromisoformat(data["target_date"])
+    remind_at = parse_moscow_time(message.text, target_date)
+    if remind_at is None:
+        await message.answer(
+            format_invalid_time(),
+            reply_markup=get_back_keyboard(),
+            **HTML,
+        )
+        return
+
+    await proceed_to_repeat_step(message, state, remind_at)
+
+
+@router.message(TaskStates.waiting_for_manual_datetime, F.text)
+async def process_manual_datetime(message: Message, state: FSMContext) -> None:
+    if message.text == BACK_BTN:
+        await go_main_menu(message, state)
+        return
+    if message.text in MENU_BUTTONS | DATE_BUTTONS | REPEAT_BUTTONS:
+        await message.answer(
+            "✍️ Введите дату и время по Москве (МСК).",
             reply_markup=get_back_keyboard(),
             **HTML,
         )
@@ -149,13 +230,7 @@ async def process_datetime(message: Message, state: FSMContext) -> None:
         )
         return
 
-    await state.update_data(remind_at=remind_at.isoformat())
-    await state.set_state(TaskStates.waiting_for_repeat_type)
-    await message.answer(
-        format_prompt_repeat(),
-        reply_markup=get_repeat_keyboard(),
-        **HTML,
-    )
+    await proceed_to_repeat_step(message, state, remind_at)
 
 
 @router.message(TaskStates.waiting_for_repeat_type, F.text)

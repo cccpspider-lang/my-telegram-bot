@@ -7,6 +7,7 @@ from aiogram import Bot
 import database as db
 from reminders.constants import ONE_TIME_REPEAT_TYPES
 from utils.datetime_parser import next_occurrence
+from utils.timezone import format_moscow_datetime, now_moscow
 
 logger = logging.getLogger(__name__)
 POLL_INTERVAL_SECONDS = 60
@@ -18,7 +19,12 @@ class ReminderService:
         self._poll_task: asyncio.Task | None = None
 
     async def process_due_reminders(self) -> None:
-        due_tasks = db.get_due_tasks(datetime.now())
+        logger.info("Checking reminders...")
+        current_time = now_moscow()
+        logger.info("Current Moscow time: %s", format_moscow_datetime(current_time))
+
+        due_tasks = db.get_due_tasks(current_time)
+        logger.info("Found reminders: %s", len(due_tasks))
 
         for task in due_tasks:
             try:
@@ -28,6 +34,11 @@ class ReminderService:
                         f"🔔 Напоминание о задаче #{task['task_number']}:\n"
                         f"{task['text']}"
                     ),
+                )
+                logger.info(
+                    "Sent reminder for task #%s to user %s",
+                    task["task_number"],
+                    task["user_id"],
                 )
                 if task["repeat_type"] in ONE_TIME_REPEAT_TYPES:
                     db.clear_task_reminder(task["id"])
@@ -53,6 +64,7 @@ class ReminderService:
     async def start_scheduler(self) -> None:
         if self._poll_task is None or self._poll_task.done():
             self._poll_task = asyncio.create_task(self._poll_loop())
+            logger.info("Reminder scheduler started (interval: %ss, timezone: Europe/Moscow)", POLL_INTERVAL_SECONDS)
 
     async def stop_scheduler(self) -> None:
         if self._poll_task is not None:
