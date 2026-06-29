@@ -31,11 +31,13 @@ def format_help() -> str:
         "<b>📋 Мои задачи</b> — список ваших задач\n\n"
         "<b>➕ Добавить задачу</b>\n"
         "1. Введите текст\n"
-        "2. Выберите дату: сегодня, завтра или вручную\n"
+        "2. Выберите дату: сегодня, завтра, постоянная или вручную\n"
         "3. Укажите время по Москве (МСК)\n"
         "4. Выберите периодичность\n\n"
         "<b>🗑 Удалить задачу</b> — выберите номер задачи\n\n"
+        "<b>✅ Выполнить задачу</b> — отметить задачу выполненной\n\n"
         "<b>❤️ Поддержка</b> — связаться с автором\n\n"
+        "🌅 Каждый день в 07:00 по Москве бот присылает утренний план дня.\n"
         "🕒 Все напоминания работают по московскому времени (МСК).\n\n"
         "Кнопка «⬅️ Назад» возвращает в главное меню."
     )
@@ -121,16 +123,32 @@ def format_invalid_datetime() -> str:
 def format_task_saved(
     task_number: int,
     text: str,
-    remind_at: datetime,
+    remind_at: datetime | None,
     repeat_type: str,
 ) -> str:
     repeat_label = REPEAT_DISPLAY.get(repeat_type, repeat_type)
-    return (
-        "✅ <b>Задача сохранена</b>\n\n"
-        f"<b>{task_number}.</b> {html.escape(text)}\n"
-        f"⏰ {format_remind_at(remind_at)}\n"
-        f"🔁 {repeat_label}"
-    )
+    lines = [
+        "✅ <b>Задача сохранена</b>\n",
+        f"<b>{task_number}.</b> {html.escape(text)}",
+    ]
+    if remind_at:
+        lines.append(f"⏰ {format_remind_at(remind_at)}")
+    else:
+        lines.append("♾️ Постоянная задача (без даты напоминания)")
+    lines.append(f"🔁 {repeat_label}")
+    return "\n".join(lines)
+
+
+def format_task_completed(task_number: int) -> str:
+    return f"✅ Задача <b>#{task_number}</b> выполнена!"
+
+
+def format_complete_prompt() -> str:
+    return "✅ <b>Выполнить задачу</b>\n\nВыберите номер задачи:"
+
+
+def format_no_tasks_to_complete() -> str:
+    return "📭 <b>Нечего отмечать</b>\n\nСписок активных задач пуст."
 
 
 def format_task_deleted(task_number: int) -> str:

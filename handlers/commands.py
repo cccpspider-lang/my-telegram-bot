@@ -13,6 +13,7 @@ from handlers.states import TaskStates
 from keyboards import (
     ADD_TASK_BTN,
     BACK_BTN,
+    COMPLETE_TASK_BTN,
     DELETE_TASK_BTN,
     HELP_BTN,
     MENU_BUTTONS,
@@ -24,13 +25,14 @@ from keyboards import (
 from keyboards.task import (
     DATE_BUTTONS,
     DATE_MANUAL_BTN,
+    DATE_PERMANENT_BTN,
     DATE_TODAY_BTN,
     DATE_TOMORROW_BTN,
     REPEAT_BUTTONS,
     get_date_choice_keyboard,
     get_repeat_keyboard,
 )
-from reminders.constants import REPEAT_BUTTON_TO_TYPE
+from reminders.constants import REPEAT_BUTTON_TO_TYPE, REPEAT_NONE
 from utils.datetime_parser import is_valid_time_format, parse_moscow_time, parse_strict_date_time
 from utils.formatters import (
     format_back_to_menu,
@@ -73,6 +75,13 @@ def get_user_id(message: Message) -> int:
     return message.from_user.id
 
 
+def register_user(message: Message) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    db.upsert_user(user.id, user.first_name or user.full_name)
+
+
 async def go_main_menu(message: Message, state: FSMContext) -> None:
     await state.clear()
     await message.answer(format_back_to_menu(), reply_markup=get_main_menu())
@@ -90,6 +99,7 @@ async def proceed_to_repeat_step(message: Message, state: FSMContext, remind_at:
 
 @router.message(Command("start"))
 async def cmd_start(message: Message, state: FSMContext) -> None:
+    register_user(message)
     await state.clear()
     await message.answer(
         format_welcome(get_user_name(message)),
@@ -114,6 +124,7 @@ async def btn_support(message: Message) -> None:
 
 @router.message(F.text == MY_TASKS_BTN)
 async def btn_my_tasks(message: Message) -> None:
+    register_user(message)
     tasks = db.get_tasks(get_user_id(message))
     if not tasks:
         await message.answer(format_empty_tasks(), reply_markup=get_main_menu(), **HTML)
@@ -127,6 +138,7 @@ async def btn_my_tasks(message: Message) -> None:
 
 @router.message(F.text == ADD_TASK_BTN)
 async def btn_add_task(message: Message, state: FSMContext) -> None:
+    register_user(message)
     await state.set_state(TaskStates.waiting_for_task_text)
     await message.answer(
         format_prompt_add_task(),
@@ -197,6 +209,30 @@ async def process_date_choice(message: Message, state: FSMContext) -> None:
         await message.answer(
             format_prompt_manual_datetime(),
             reply_markup=get_back_keyboard(),
+            **HTML,
+        )
+        return
+
+    if message.text == DATE_PERMANENT_BTN:
+        data = await get_state_data(state)
+        if not require_keys(data, "task_text"):
+            await message.answer(
+                "⚠️ Сессия сброшена. Начните добавление задачи заново.",
+                reply_markup=get_main_menu(),
+            )
+            await state.clear()
+            return
+
+        task_number = db.add_task(
+            get_user_id(message),
+            data["task_text"],
+            None,
+            REPEAT_NONE,
+        )
+        await state.clear()
+        await message.answer(
+            format_task_saved(task_number, data["task_text"], None, REPEAT_NONE),
+            reply_markup=get_main_menu(),
             **HTML,
         )
         return
@@ -307,6 +343,7 @@ async def process_repeat_type(message: Message, state: FSMContext) -> None:
 
     remind_at = datetime.fromisoformat(data["remind_at"])
     task_text = data["task_text"]
+    register_user(message)
     task_number = db.add_task(
         get_user_id(message),
         task_text,

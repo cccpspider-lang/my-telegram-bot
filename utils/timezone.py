@@ -2,6 +2,7 @@ from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 MOSCOW_TZ = ZoneInfo("Europe/Moscow")
+MORNING_DIGEST_HOUR = 7
 
 
 def now_moscow() -> datetime:
@@ -15,6 +16,10 @@ def today_moscow() -> date:
 
 def tomorrow_moscow() -> date:
     return today_moscow() + timedelta(days=1)
+
+
+def yesterday_moscow() -> date:
+    return today_moscow() - timedelta(days=1)
 
 
 def format_moscow_datetime(dt: datetime) -> str:

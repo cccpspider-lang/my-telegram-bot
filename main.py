@@ -6,6 +6,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 import database as db
 from config import BOT_TOKEN
+from digest.service import MorningDigestService
 from handlers import router
 from reminders.service import ReminderService
 
@@ -21,12 +22,15 @@ async def main() -> None:
     dp.include_router(router)
 
     reminder_service = ReminderService(bot)
+    morning_digest_service = MorningDigestService(bot)
     await reminder_service.start_scheduler()
+    await morning_digest_service.start_scheduler()
     logger.info("Бот запущен.")
 
     try:
         await dp.start_polling(bot)
     finally:
+        await morning_digest_service.stop_scheduler()
         await reminder_service.stop_scheduler()
 
 
